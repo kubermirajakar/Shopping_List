@@ -25,7 +25,9 @@ class _newItemState extends State<NewItem> {
       return;
     }
     _formKey.currentState!.save();
-    _isSending = true;
+    setState(() {
+      _isSending = true;
+    });
     // print(_enteredName);
     // print(_enteredQuantity);
     // print(_selectedCategory);

@@ -20,6 +20,7 @@ class GroceryList extends StatefulWidget {
 class _groceryListState extends State<GroceryList> {
   List<GroceryItem> _groceryItems = [];
   var _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -31,9 +32,13 @@ class _groceryListState extends State<GroceryList> {
     final url = Uri.https('flutter-project-8d93c-default-rtdb.firebaseio.com',
         'shopping_list.json');
     final response = await http.get(url);
-
+    if (response.statusCode >= 400) {
+      setState(() {
+        _error = "Failed to fetch data. Please try again later.";
+      });
+    }
     final Map<String, dynamic> data = json.decode(response.body);
-    if (data == null) {
+    if (response.body == 'null') {
       setState(() {
         _isLoading = false;
       });
@@ -74,10 +79,22 @@ class _groceryListState extends State<GroceryList> {
     });
   }
 
-  void _onDelete(GroceryItem item) {
+  void _onDelete(GroceryItem item) async {
+    int index = _groceryItems.indexOf(item);
     setState(() {
       _groceryItems.remove(item);
     });
+    final url = Uri.https('flutter-project-8d93c-default-rtdb.firebaseio.com',
+        'shopping_list/${item.id}.json');
+
+    final deletedData = await http.delete(url);
+    if (deletedData.statusCode >= 400) {
+      setState(() {
+        _groceryItems.insert(index, item);
+      });
+    }
+
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Item Deleted'),
@@ -116,6 +133,12 @@ class _groceryListState extends State<GroceryList> {
             trailing: Text(_groceryItems[index].quantity.toString()),
           ),
         ),
+      );
+    }
+
+    if (_error != null) {
+      content = Center(
+        child: Text(_error!),
       );
     }
 
