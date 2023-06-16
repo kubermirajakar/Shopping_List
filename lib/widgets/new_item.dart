@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shoppinglist/Data/categories.dart';
 import 'package:shoppinglist/model/Category.dart';
 import 'package:shoppinglist/model/Grocery_Item.dart';
+import 'package:http/http.dart' as http;
 
 class NewItem extends StatefulWidget {
   @override
@@ -15,17 +18,36 @@ class _newItemState extends State<NewItem> {
   var _enteredName = '';
   var _enteredQuantity = 1;
   var _selectedCategory = categoriess[Categories.vegetables];
+  var _isSending = false;
 
-  void onSave() {
-    _formKey.currentState!.validate();
+  void onSave() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     _formKey.currentState!.save();
-    print(_enteredName);
-    print(_enteredQuantity);
-    print(_selectedCategory);
-
+    _isSending = true;
+    // print(_enteredName);
+    // print(_enteredQuantity);
+    // print(_selectedCategory);
+    final url = Uri.https('flutter-project-8d93c-default-rtdb.firebaseio.com',
+        'shopping_list.json');
+    final resp = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(
+        {
+          'name': _enteredName,
+          'quantity': _enteredQuantity,
+          'category': _selectedCategory!.title
+        },
+      ),
+    );
+    final respData = json.decode(resp.body);
     Navigator.of(context).pop(
       GroceryItem(
-          id: DateTime.now().toString(),
+          id: respData['name'],
           name: _enteredName,
           quantity: _enteredQuantity,
           category: _selectedCategory!),
@@ -54,9 +76,9 @@ class _newItemState extends State<NewItem> {
                 ),
                 validator: (value) {
                   if (value == null ||
-                      value.trim().length > 1 ||
-                      value.trim() == null ||
-                      value.trim().length < 50) {
+                      value.trim().isEmpty ||
+                      value.trim().length < 1 ||
+                      value.trim() == null) {
                     return 'Name should be valid...';
                   }
                   return null;
@@ -77,7 +99,7 @@ class _newItemState extends State<NewItem> {
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value == null ||
-                            value.isEmpty ||
+                            value.trim().isEmpty ||
                             int.tryParse(value) == null ||
                             int.tryParse(value)! <= 0) {
                           return 'Enter vaue between 1 to 50';
@@ -125,14 +147,22 @@ class _newItemState extends State<NewItem> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () {
-                      _formKey.currentState!.reset();
-                    },
+                    onPressed: _isSending
+                        ? null
+                        : () {
+                            _formKey.currentState!.reset();
+                          },
                     child: const Text('Reset'),
                   ),
                   ElevatedButton(
                     onPressed: onSave,
-                    child: const Text('Add Item'),
+                    child: _isSending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(),
+                          )
+                        : const Text('Add Item'),
                   ),
                 ],
               )
